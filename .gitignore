@@ -18,6 +18,12 @@ build/
 dist/
 *.spec
 
+# Installer output
+installer/*.exe
+installer/*.tmp
+installer/Output/
+releases/
+
 # Local config and secrets
 .env
 .env.*

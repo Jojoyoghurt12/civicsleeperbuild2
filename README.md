@@ -9,6 +9,8 @@ The simulator is intended as an educational systems biology tool. It is biologic
 
 Questions can be sent to j.ten.broeke.1@student.rug.nl.
 
+Direct download link to installer ; https://github.com/YOUR_USERNAME/SystemsBiologySimulator-Downloads/releases/latest/download/SystemsBiologySimulatorSetup.exe 
+
 ## Features
 
 ### App Navigation

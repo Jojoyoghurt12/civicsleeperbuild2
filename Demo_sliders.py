@@ -1,172 +1,90 @@
 import pygame
-import numpy as np
-import matplotlib.pyplot as plt
-from computation import tester
-import math
+
+from computation import engine
+from computation.pathways import build_pathway_reactions
+from ui.controls import (
+    draw_km_step_buttons,
+    draw_pathway_tabs,
+    draw_reaction_buttons,
+    draw_step_buttons,
+    draw_total_atp_button,
+    make_pathway_tab_rects,
+    make_reaction_button_rects,
+    make_step_button_rects,
+)
+from ui.graph import draw_axes, draw_curves, draw_legend, get_max_value, make_curves
+from ui.sliders import Slider, make_km_sliders
 
 
 pygame.init()
 
-WIDTH = 1400
+WIDTH = 1500
 HEIGHT = 800
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Flux Dynamics Demo")
 
 clock = pygame.time.Clock()
-running = True
 
+control_left = 390
 
-# create slider class
-class Slider:
-    # constructor to initialize the slider with min, max, and initial values
-    def __init__(self, min_value, max_value, initial_value, x, y, width, knob_radius, title):
-        self.min_value = min_value
-        self.max_value = max_value
-        self.value = initial_value
-        self.title = title
+button_left = 20
+tab_top = 20
+tab_width = 300
+tab_height = 24
+button_width = 300
+button_height = 20
+button_gap = 6
 
-        self.x = x
-        self.y = y
-        self.width = width
-        self.knob_radius = knob_radius
-        self.dragging = False
-        self.knob_colour = (0, 0, 0)  # Default knob color
-    # ability to slide the knob based on a fraction of the total range
-    def set_knob_position_fraction(self, fraction):
-        fraction = max(0, min(1, fraction))
-        self.value = self.min_value + fraction * (self.max_value - self.min_value)
-    # ability to get the current knob position as a fraction of the total range
-    def get_knob_position_fraction(self):
-        return (self.value - self.min_value) / (self.max_value - self.min_value)
-    def set_value(self, value):
-        value = max(self.min_value, min(self.max_value, value))
-        self.value = value
-    def draw(self, screen):
-        font = pygame.font.SysFont(None, 24)
-
-        title_text = font.render(self.title, True, (0, 0, 0))
-        screen.blit(title_text, (self.x, self.y - 28))
-
-        # Draw the slider track
-        pygame.draw.line(screen, (0, 0, 0), (self.x, self.y), (self.x + self.width, self.y), 5)
-
-        # Draw the knob
-        knob_x = self.x + self.get_knob_position_fraction() * self.width
-        pygame.draw.circle(screen, self.knob_colour, (int(knob_x), self.y), self.knob_radius)
-
-        # Draw the slider value
-        value_text = font.render(f"{self.value:.2f}", True, (0, 0, 0))
-        screen.blit(value_text, (self.x + self.width + 10, self.y - 12))
-
-    # only compute after slider moved again. 
-    def handle_event(self, event):
-        changed = False
-        # Check if the mouse is clicking on the knob
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            mouse_x, mouse_y = event.pos
-            knob_x = self.x + self.get_knob_position_fraction() * self.width
-            if (mouse_x - knob_x) ** 2 + (mouse_y - self.y) ** 2 <= self.knob_radius ** 2:
-                self.dragging = True
-        # Check if the mouse button is released to stop dragging
-        elif event.type == pygame.MOUSEBUTTONUP:
-            if self.dragging:
-                changed = True
-                self.dragging = False
-        # Check if the mouse is moving while dragging the knob
-        elif event.type == pygame.MOUSEMOTION:
-            if self.dragging:
-                mouse_x, mouse_y = event.pos
-                fraction = (mouse_x - self.x) / self.width
-                self.set_knob_position_fraction(fraction)
-
-        return changed
-
-#values to points for projections
-def values_to_points(values, graph_left, graph_top, graph_width, graph_height, max_value):
-    if max_value == 0:
-        max_value = 1
-
-    points = []
-
-    for i, value in enumerate(values):
-        x = graph_left + i / (len(values) - 1) * graph_width
-        y = graph_top + graph_height - value / max_value * graph_height
-        points.append((x, y))
-
-    return points
-
-
-def downsample_values(values, step):
-    if step <= 1 or len(values) <= 2:
-        return values
-
-    downsampled = values[::step]
-    if downsampled[-1] != values[-1]:
-        downsampled.append(values[-1])
-
-    return downsampled
-
-def make_curves(results, curve_colors):
-    curves = []
-    for i, (metabolite, values) in enumerate(results.items()):
-        curves.append((metabolite, values, curve_colors[i % len(curve_colors)]))
-    return curves
-
-
-def get_max_value(results):
-    all_values = []
-    for values in results.values():
-        all_values += values
-    return max(1, math.ceil(max(all_values)))
-
-
-def run_simulation():
-    return tester.comp_loop(
-        reaction_params=reaction_params,
-        start_slid=start_slid.value,
-        atp_start=atp_slid.value,
-    )
-
-
-# sliders in format (min_value, max_value, initial_value, x, y, width, knob_radius, title)
-reaction_params = tester.copy_reaction_params()
-reaction_names = list(reaction_params)
-selected_reaction = reaction_names[0]
-
-control_left = 430
-
-selected_km = Slider(0, 5, reaction_params[selected_reaction]["km"], control_left, 650, 200, 10, "km")
-selected_max_flow = Slider(0, 5, reaction_params[selected_reaction]["max_flow"], control_left + 300, 650, 200, 10, "max_flow")
-start_slid = Slider(0, 1000, 100, 40, 550, 250, 10, "glucose start")
-atp_slid = Slider(0, 1000, 100, 40, 620, 250, 10, "ATP start")
-
-sliders = [selected_km, selected_max_flow, start_slid, atp_slid]
+graph_left = control_left
+graph_top = 50
+graph_width = 700
+graph_height = 450
 
 step_button_size = 24
 step_button_gap = 8
-km_minus_button = pygame.Rect(selected_km.x, selected_km.y + 25, step_button_size, step_button_size)
-km_plus_button = pygame.Rect(selected_km.x + step_button_size + step_button_gap, selected_km.y + 25, step_button_size, step_button_size)
-max_flow_minus_button = pygame.Rect(selected_max_flow.x, selected_max_flow.y + 25, step_button_size, step_button_size)
-max_flow_plus_button = pygame.Rect(selected_max_flow.x + step_button_size + step_button_gap, selected_max_flow.y + 25, step_button_size, step_button_size)
-start_minus_button = pygame.Rect(start_slid.x, start_slid.y + 25, step_button_size, step_button_size)
-start_plus_button = pygame.Rect(start_slid.x + step_button_size + step_button_gap, start_slid.y + 25, step_button_size, step_button_size)
-atp_minus_button = pygame.Rect(atp_slid.x, atp_slid.y + 25, step_button_size, step_button_size)
-atp_plus_button = pygame.Rect(atp_slid.x + step_button_size + step_button_gap, atp_slid.y + 25, step_button_size, step_button_size)
+draw_downsample_step = 4
 
-step_buttons = [
-    (km_minus_button, selected_km, -0.1, "-"),
-    (km_plus_button, selected_km, 0.1, "+"),
-    (max_flow_minus_button, selected_max_flow, -1.0, "-"),
-    (max_flow_plus_button, selected_max_flow, 1.0, "+"),
-    (start_minus_button, start_slid, -10.0, "-"),
-    (start_plus_button, start_slid, 10.0, "+"),
-    (atp_minus_button, atp_slid, -10.0, "-"),
-    (atp_plus_button, atp_slid, 10.0, "+"),
-]
+reaction_params = engine.copy_reaction_params()
+reaction_names = list(reaction_params)
+pathway_reactions = build_pathway_reactions(reaction_names)
+parameter_tab_name = "Starting parameters"
+parameter_control_left = button_left + 12
+parameter_slider_top = tab_top + tab_height + button_gap + 28
+parameter_slider_width = 210
+parameter_slider_gap = 64
+sidebar_extra_section_heights = {parameter_tab_name: 390}
+selected_pathway = "Glycolysis"
+selected_sidebar_tab = None
+selected_reaction = pathway_reactions[selected_pathway][0]
 
-results = run_simulation()
+km_sliders = make_km_sliders(reaction_params, selected_reaction, control_left)
+selected_max_flow = Slider(0, 5, reaction_params[selected_reaction]["max_flow"], control_left + 300, 650, 200, 10, "max_flow")
+start_slid = Slider(0, 5, 2, parameter_control_left, parameter_slider_top, parameter_slider_width, 10, "glucose start")
+fructose_slid = Slider(0, 5, 0, parameter_control_left, parameter_slider_top + parameter_slider_gap, parameter_slider_width, 10, "fructose start")
+atp_slid = Slider(0, 10, 5, parameter_control_left, parameter_slider_top + 2 * parameter_slider_gap, parameter_slider_width, 10, "initial ATP")
+oxygen_slid = Slider(0, 1, 1, parameter_control_left, parameter_slider_top + 3 * parameter_slider_gap, parameter_slider_width, 10, "oxygen")
+time_slid = Slider(100, 4000, 400, parameter_control_left, parameter_slider_top + 4 * parameter_slider_gap, parameter_slider_width, 10, "time steps")
+starting_parameter_sliders = [start_slid, fructose_slid, atp_slid, oxygen_slid, time_slid]
 
-max_value = get_max_value(results)
+show_total_atp = True
+highlighted_metabolite = None
+hidden_metabolites = set()
+legend_button_rects = []
+legend_pathway_tab_rects = []
+legend_toggle_button_rects = []
+selected_legend_pathway = None
+total_atp_button = pygame.Rect(parameter_control_left, parameter_slider_top + 320, 210, 28)
+
+max_flow_step_buttons = make_step_button_rects([
+    (selected_max_flow, 1.0),
+])
+starting_parameter_step_buttons = make_step_button_rects([
+    (start_slid, 0.2),
+    (fructose_slid, 0.2),
+    (atp_slid, 0.5),
+    (oxygen_slid, 0.1),
+    (time_slid, 100),
+])
 
 curve_colors = [
     (80, 80, 80),
@@ -187,175 +105,210 @@ curve_colors = [
     (120, 120, 120),
 ]
 
-curves = make_curves(results, curve_colors)
-draw_downsample_step = 4
+
+def run_simulation():
+    return engine.comp_loop(
+        reaction_params=reaction_params,
+        start_slid=start_slid.value,
+        atp_start=atp_slid.value,
+        fructose_start=fructose_slid.value,
+        oxygen_level=oxygen_slid.value,
+        simulation_steps=time_slid.value,
+    )
+
+
+def update_selected_reaction(reaction_name):
+    global selected_reaction, km_sliders
+    selected_reaction = reaction_name
+    km_sliders = make_km_sliders(reaction_params, selected_reaction, control_left)
+    selected_max_flow.set_value(reaction_params[selected_reaction]["max_flow"])
+
+
+def update_simulation():
+    global results, max_value, curves
+    for substrate, slider in km_sliders:
+        engine.set_reaction_substrate_km_value(reaction_params, selected_reaction, substrate, slider.value)
+    reaction_params[selected_reaction]["max_flow"] = selected_max_flow.value
+    results = run_simulation()
+    max_value = get_max_value(results, show_total_atp, hidden_metabolites)
+    curves = make_curves(results, curve_colors, show_total_atp)
+
+
+def make_pathway_metabolites(pathway_reactions, reaction_params):
+    reactions_by_name = {
+        reaction["name"]: reaction
+        for reaction in engine.build_reactions(engine.copy_reaction_params(reaction_params))
+    }
+    pathway_metabolites = {}
+    for pathway_name, reaction_list in pathway_reactions.items():
+        metabolites = set()
+        for reaction_name in reaction_list:
+            reaction = reactions_by_name[reaction_name]
+            metabolites.update(reaction["reactants"])
+            metabolites.update(reaction["products"])
+        pathway_metabolites[pathway_name] = metabolites
+    return pathway_metabolites
+
+
+def make_sidebar_rects():
+    tab_rects = make_pathway_tab_rects(
+        pathway_reactions,
+        selected_sidebar_tab,
+        button_left,
+        tab_top,
+        tab_width,
+        tab_height,
+        button_height,
+        button_gap,
+        sidebar_extra_section_heights,
+    )
+    if selected_sidebar_tab in pathway_reactions:
+        button_rects = make_reaction_button_rects(
+            pathway_reactions,
+            selected_sidebar_tab,
+            button_left,
+            tab_top,
+            tab_height,
+            button_width,
+            button_height,
+            button_gap,
+            sidebar_extra_section_heights,
+        )
+    else:
+        button_rects = []
+    return tab_rects, button_rects
+
+
+results = run_simulation()
+max_value = get_max_value(results, show_total_atp, hidden_metabolites)
+curves = make_curves(results, curve_colors, show_total_atp)
 
 button_font = pygame.font.SysFont(None, 18)
-reaction_button_rects = []
-button_left = 20
-button_top = 50
-button_width = 360
-button_height = 20
-button_gap = 6
-for i, reaction_name in enumerate(reaction_names):
-    column = 0
-    row = i
-    button_x = button_left + column * (button_width + button_gap)
-    button_y = button_top + row * (button_height + button_gap)
-    reaction_button_rects.append((reaction_name, pygame.Rect(button_x, button_y, button_width, button_height)))
+pathway_tab_rects, reaction_button_rects = make_sidebar_rects()
+pathway_metabolites = make_pathway_metabolites(pathway_reactions, reaction_params)
 
-
-# main loop
 running = True
 while running:
     slider_changed = False
-    # event checking
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
         if event.type == pygame.MOUSEBUTTONDOWN:
+            if selected_sidebar_tab == parameter_tab_name and total_atp_button.collidepoint(event.pos):
+                show_total_atp = not show_total_atp
+                max_value = get_max_value(results, show_total_atp, hidden_metabolites)
+                curves = make_curves(results, curve_colors, show_total_atp)
+
+            for legend_label, toggle_rect in legend_toggle_button_rects:
+                if toggle_rect.collidepoint(event.pos):
+                    if legend_label in hidden_metabolites:
+                        hidden_metabolites.remove(legend_label)
+                    else:
+                        hidden_metabolites.add(legend_label)
+                    max_value = get_max_value(results, show_total_atp, hidden_metabolites)
+
+            for legend_label, legend_rect in legend_button_rects:
+                if legend_rect.collidepoint(event.pos):
+                    highlighted_metabolite = None if highlighted_metabolite == legend_label else legend_label
+
+            for pathway_name, tab_rect in legend_pathway_tab_rects:
+                if tab_rect.collidepoint(event.pos):
+                    selected_legend_pathway = None if selected_legend_pathway == pathway_name else pathway_name
+
+            for pathway_name, tab_rect in pathway_tab_rects:
+                if tab_rect.collidepoint(event.pos):
+                    if pathway_name == selected_sidebar_tab:
+                        selected_sidebar_tab = None
+                        pathway_tab_rects, reaction_button_rects = make_sidebar_rects()
+                    elif pathway_name == parameter_tab_name:
+                        selected_sidebar_tab = parameter_tab_name
+                        pathway_tab_rects, reaction_button_rects = make_sidebar_rects()
+                    elif pathway_reactions[pathway_name]:
+                        selected_sidebar_tab = pathway_name
+                        selected_pathway = pathway_name
+                        pathway_tab_rects, reaction_button_rects = make_sidebar_rects()
+                        update_selected_reaction(pathway_reactions[selected_pathway][0])
+                        slider_changed = True
+
             for reaction_name, button_rect in reaction_button_rects:
                 if button_rect.collidepoint(event.pos):
-                    selected_reaction = reaction_name
-                    selected_km.set_value(reaction_params[selected_reaction]["km"])
-                    selected_max_flow.set_value(reaction_params[selected_reaction]["max_flow"])
+                    update_selected_reaction(reaction_name)
                     slider_changed = True
 
-            for button_rect, slider, step, label in step_buttons:
+            if selected_sidebar_tab == parameter_tab_name:
+                visible_step_buttons = max_flow_step_buttons + starting_parameter_step_buttons
+            else:
+                visible_step_buttons = max_flow_step_buttons
+            for button_rect, slider, step, label in visible_step_buttons:
                 if button_rect.collidepoint(event.pos):
                     slider.set_value(round(slider.value + step, 10))
                     slider_changed = True
 
-        for slider in sliders:
+            for substrate, slider in km_sliders:
+                km_button_x = slider.x + slider.width - (2 * step_button_size + step_button_gap)
+                km_button_y = slider.y + 25
+                km_minus_button = pygame.Rect(km_button_x, km_button_y, step_button_size, step_button_size)
+                km_plus_button = pygame.Rect(km_button_x + step_button_size + step_button_gap, km_button_y, step_button_size, step_button_size)
+                if km_minus_button.collidepoint(event.pos):
+                    slider.set_value(round(slider.value - 0.1, 10))
+                    slider_changed = True
+                if km_plus_button.collidepoint(event.pos):
+                    slider.set_value(round(slider.value + 0.1, 10))
+                    slider_changed = True
+
+        if selected_max_flow.handle_event(event):
+            slider_changed = True
+        if selected_sidebar_tab == parameter_tab_name:
+            for slider in starting_parameter_sliders:
+                if slider.handle_event(event):
+                    slider_changed = True
+        for substrate, slider in km_sliders:
             if slider.handle_event(event):
                 slider_changed = True
-    # event handling for slider changes
-    if slider_changed:
-        reaction_params[selected_reaction]["km"] = selected_km.value
-        reaction_params[selected_reaction]["max_flow"] = selected_max_flow.value
-        results = run_simulation()
-        max_value = get_max_value(results)
-        curves = make_curves(results, curve_colors)
 
-    
+    if slider_changed:
+        update_simulation()
+
     screen.fill((245, 245, 245))
-    for slider in sliders:
+
+    for substrate, slider in km_sliders:
         slider.draw(screen)
+    selected_max_flow.draw(screen)
+    if selected_sidebar_tab == parameter_tab_name:
+        for slider in starting_parameter_sliders:
+            slider.draw(screen)
 
     step_font = pygame.font.SysFont(None, 24)
-    for button_rect, slider, step, label in step_buttons:
-        pygame.draw.rect(screen, (230, 230, 230), button_rect)
-        pygame.draw.rect(screen, (0, 0, 0), button_rect, 1)
-        button_text = step_font.render(label, True, (0, 0, 0))
-        screen.blit(
-            button_text,
-            (
-                button_rect.centerx - button_text.get_width() // 2,
-                button_rect.centery - button_text.get_height() // 2,
-            )
-        )
+    draw_km_step_buttons(screen, km_sliders, step_button_size, step_button_gap, step_font)
+    draw_step_buttons(screen, max_flow_step_buttons, step_font)
+    if selected_sidebar_tab == parameter_tab_name:
+        draw_step_buttons(screen, starting_parameter_step_buttons, step_font)
+        draw_total_atp_button(screen, total_atp_button, show_total_atp, step_font)
 
     selected_font = pygame.font.SysFont(None, 24)
-    selected_text = selected_font.render(f"selected reaction: {selected_reaction}", True, (0, 0, 0))
+    selected_text = selected_font.render(f"selected pathway: {selected_pathway} | selected reaction: {selected_reaction}", True, (0, 0, 0))
     screen.blit(selected_text, (control_left, 610))
 
-    for reaction_name, button_rect in reaction_button_rects:
-        fill_color = (210, 230, 255) if reaction_name == selected_reaction else (230, 230, 230)
-        pygame.draw.rect(screen, fill_color, button_rect)
-        pygame.draw.rect(screen, (0, 0, 0), button_rect, 1)
-        button_text = button_font.render(reaction_name, True, (0, 0, 0))
-        screen.blit(button_text, (button_rect.x + 4, button_rect.y + 3))
-    
-    graph_left = control_left
-    graph_top = 50
-    graph_width = 700
-    graph_height = 450
-    graph_bottom = graph_top + graph_height
+    draw_pathway_tabs(screen, pathway_tab_rects, pathway_reactions, selected_sidebar_tab, button_font, sidebar_extra_section_heights)
+    draw_reaction_buttons(screen, reaction_button_rects, selected_reaction, button_font)
 
-    # graph axis
-    pygame.draw.line(screen, (0, 0, 0), (graph_left, graph_bottom), (graph_left + graph_width, graph_bottom), 2)
-    pygame.draw.line(screen, (0, 0, 0), (graph_left, graph_top), (graph_left, graph_bottom), 2)
-
-    # sim point curves
-    for label, values, color in curves:
-        draw_values = downsample_values(values, draw_downsample_step)
-        points = values_to_points(
-            draw_values,
-            graph_left,
-            graph_top,
-            graph_width,
-            graph_height,
-            max_value
-        )
-
-        for i in range(len(points) - 1):
-            pygame.draw.line(screen, color, points[i], points[i + 1], 2)
-    # legend
-    legend_font = pygame.font.SysFont(None, 24)
-    legend_x = graph_left + graph_width + 30
-    legend_y = graph_top + 20
-    for i, (label, values, color) in enumerate(curves):
-        legend_column = i // 8
-        legend_row = i % 8
-        item_x = legend_x + legend_column * 130
-        item_y = legend_y + legend_row * 25
-        pygame.draw.line(screen, color, (item_x, item_y), (item_x + 25, item_y), 4)
-        label_text = legend_font.render(label, True, (0, 0, 0))
-        screen.blit(label_text, (item_x + 35, item_y - 10))
-
-    # axis specifications
-    axis_font = pygame.font.SysFont(None, 20)
-    axis_title_font = pygame.font.SysFont(None, 26)
-
-    x_title = axis_title_font.render("Time", True, (0, 0, 0))
-    screen.blit(x_title, (graph_left + graph_width // 2 - x_title.get_width() // 2, graph_bottom + 35))
-
-    y_title = axis_title_font.render("Amount", True, (0, 0, 0))
-    screen.blit(y_title, (graph_left - 75, graph_top - 25))
-
-    # axis ticks x
-    x_tick_count = 5
-    time_steps = len(next(iter(results.values())))
-
-    for i in range(x_tick_count + 1):
-        fraction = i / x_tick_count
-
-        x = graph_left + fraction * graph_width
-        y = graph_bottom
-
-        time_value = int(fraction * (time_steps - 1))
-
-        pygame.draw.line(screen, (0, 0, 0), (x, y), (x, y + 6), 2)
-
-        text = axis_font.render(str(time_value), True, (0, 0, 0))
-        screen.blit(text, (x - 10, y + 10))
-
-    # axis ticks y
-    y_tick_count = 5
-
-    for i in range(y_tick_count + 1):
-        fraction = i / y_tick_count
-
-        x = graph_left
-        y = graph_bottom - fraction * graph_height
-
-        value = fraction * max_value
-
-        pygame.draw.line(screen, (0, 0, 0), (x - 6, y), (x, y), 2)
-
-        text = axis_font.render(f"{value:.0f}", True, (0, 0, 0))
-        screen.blit(text, (x - 45, y - 8))
-
-    
-
-    
+    draw_axes(screen, results, graph_left, graph_top, graph_width, graph_height, max_value)
+    draw_curves(screen, curves, graph_left, graph_top, graph_width, graph_height, max_value, highlighted_metabolite, draw_downsample_step, hidden_metabolites)
+    legend_button_rects, legend_pathway_tab_rects, legend_toggle_button_rects = draw_legend(
+        screen,
+        curves,
+        graph_left,
+        graph_top,
+        graph_width,
+        highlighted_metabolite,
+        pathway_metabolites,
+        selected_legend_pathway,
+        hidden_metabolites,
+    )
 
     pygame.display.flip()
-    clock.tick(60)  # Limit the frame rate to 60 FPS
+    clock.tick(60)
+
 pygame.quit()
-
-
-
-
-

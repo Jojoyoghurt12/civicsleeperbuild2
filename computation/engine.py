@@ -92,12 +92,17 @@ DEFAULT_REACTION_PARAMS = {
     "pyruvate_carboxylase": {"km": {"pyruvate": 0.10, "current_ATP": 0.05, "CO2": 0.01}, "max_flow": 1},
     "citrate_synthase": {"km": {"oxaloacetate": 0.003, "acetyl_CoA": 0.013}, "max_flow": 1},
     "aconitase": {"km": {"citrate": 0.45}, "max_flow": 1},
+    "aconitase_r": {"km": {"isocitrate": 0.45}, "max_flow": 0.9},
     "isocitrate_dehydrogenase": {"km": {"isocitrate": 0.0225, "NAD+": 0.07}, "max_flow": 1},
     "alpha_ketoglutarate_dehydrogenase": {"km": {"alpha_ketoglutarate": 0.11, "NAD+": 0.05, "CoA": 0.0035}, "max_flow": 1},
     "succinyl_CoA_synthetase": {"km": {"succinyl_CoA": 0.01, "ADP": 0.0225, "Pi": 1.00}, "max_flow": 1},
+    "succinyl_CoA_synthetase_r": {"km": {"succinate": 0.01, "GTP": 0.0225, "CoA": 0.01}, "max_flow": 0.2},
     "succinate_dehydrogenase": {"km": {"succinate": 0.40, "FAD": 0.05}, "max_flow": 1},
     "fumarase": {"km": {"fumarate": 0.035}, "max_flow": 1},
-    "malate_dehydrogenase": {"km": {"malate": 0.30, "NAD+": 0.075}, "max_flow": 1}
+    "fumarase_r": {"km": {"malate": 0.035}, "max_flow": 0.9},
+    "malate_dehydrogenase": {"km": {"malate": 0.30, "NAD+": 0.075}, "max_flow": 1},
+    "malate_dehydrogenase_r": {"km": {"oxaloacetate": 0.30, "NADH": 0.075}, "max_flow": 0.2},
+    "lactate_dehydrogenase_r": {"km": {"lactate": 0.10, "NAD+": 0.05}, "max_flow": 0.2}
 }
 
 
@@ -184,6 +189,7 @@ def build_reactions(params):
         reaction_definition("enolase_r", {"PEP": 1}, {"2PG": 1}, params),
         reaction_definition("pyruvate_kinase", {"PEP": 1, "ADP": 1}, {"pyruvate": 1, "current_ATP": 1, "glycolytic_ATP": 1}, params, inhibitors={"current_ATP": 2.0}, activators={"F16BP": 0.1}),
         reaction_definition("lactate_dehydrogenase", {"pyruvate": 1, "NADH": 1}, {"lactate": 1, "NAD+": 1}, params, inhibitors={"NAD+": 0.5}),
+        reaction_definition("lactate_dehydrogenase_r", {"lactate": 1, "NAD+": 1}, {"pyruvate": 1, "NADH": 1}, params),
         reaction_definition("mitochondrial_NADH_oxidation", {"NADH": 1, "ADP": 2.5, "Pi": 2.5}, {"NAD+": 1, "current_ATP": 2.5, "aerobic_ATP": 2.5}, params),
         reaction_definition("mitochondrial_FADH2_oxidation", {"FADH2": 1, "ADP": 1.5, "Pi": 1.5}, {"FAD": 1, "current_ATP": 1.5, "aerobic_ATP": 1.5}, params),
         reaction_definition("ATP_hydrolysis", {"current_ATP": 1}, {"ADP": 1, "Pi": 1}, params),
@@ -194,12 +200,16 @@ def build_reactions(params):
         reaction_definition("pyruvate_carboxylase", {"pyruvate": 1, "current_ATP": 1, "CO2": 1}, {"oxaloacetate": 1, "ADP": 1, "Pi": 1}, params),
         reaction_definition("citrate_synthase", {"oxaloacetate": 1, "acetyl_CoA": 1}, {"citrate": 1, "CoA": 1}, params),
         reaction_definition("aconitase", {"citrate": 1}, {"isocitrate": 1}, params),
+        reaction_definition("aconitase_r", {"isocitrate": 1}, {"citrate": 1}, params),
         reaction_definition("isocitrate_dehydrogenase", {"isocitrate": 1, "NAD+": 1}, {"alpha_ketoglutarate": 1, "NADH": 1, "CO2": 1}, params),
         reaction_definition("alpha_ketoglutarate_dehydrogenase", {"alpha_ketoglutarate": 1, "NAD+": 1, "CoA": 1}, {"succinyl_CoA": 1, "NADH": 1, "CO2": 1}, params),
         reaction_definition("succinyl_CoA_synthetase", {"succinyl_CoA": 1, "ADP": 1, "Pi": 1}, {"succinate": 1, "GTP": 1, "CoA": 1}, params),
+        reaction_definition("succinyl_CoA_synthetase_r", {"succinate": 1, "GTP": 1, "CoA": 1}, {"succinyl_CoA": 1, "ADP": 1, "Pi": 1}, params),
         reaction_definition("succinate_dehydrogenase", {"succinate": 1, "FAD": 1}, {"fumarate": 1, "FADH2": 1}, params),
         reaction_definition("fumarase", {"fumarate": 1}, {"malate": 1}, params),
+        reaction_definition("fumarase_r", {"malate": 1}, {"fumarate": 1}, params),
         reaction_definition("malate_dehydrogenase", {"malate": 1, "NAD+": 1}, {"oxaloacetate": 1, "NADH": 1}, params),
+        reaction_definition("malate_dehydrogenase_r", {"oxaloacetate": 1, "NADH": 1}, {"malate": 1, "NAD+": 1}, params),
         
     ]
 

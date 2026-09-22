@@ -1,5 +1,7 @@
 import pygame
 
+from ui import theme
+
 
 def make_step_button_rects(sliders):
     step_button_size = 24
@@ -54,16 +56,7 @@ def make_reaction_button_rects(pathway_reactions, pathway_name, button_left, tab
 
 def draw_step_buttons(screen, step_buttons, font):
     for button_rect, slider, step, label in step_buttons:
-        pygame.draw.rect(screen, (230, 230, 230), button_rect)
-        pygame.draw.rect(screen, (0, 0, 0), button_rect, 1)
-        button_text = font.render(label, True, (0, 0, 0))
-        screen.blit(
-            button_text,
-            (
-                button_rect.centerx - button_text.get_width() // 2,
-                button_rect.centery - button_text.get_height() // 2,
-            )
-        )
+        theme.draw_button(screen, button_rect, label, font)
 
 
 def draw_km_step_buttons(screen, km_sliders, step_button_size, step_button_gap, font):
@@ -75,53 +68,28 @@ def draw_km_step_buttons(screen, km_sliders, step_button_size, step_button_gap, 
             (pygame.Rect(button_x + step_button_size + step_button_gap, button_y, step_button_size, step_button_size), "+"),
         ]
         for button_rect, label in km_step_buttons:
-            pygame.draw.rect(screen, (230, 230, 230), button_rect)
-            pygame.draw.rect(screen, (0, 0, 0), button_rect, 1)
-            button_text = font.render(label, True, (0, 0, 0))
-            screen.blit(
-                button_text,
-                (
-                    button_rect.centerx - button_text.get_width() // 2,
-                    button_rect.centery - button_text.get_height() // 2,
-                )
-            )
+            theme.draw_button(screen, button_rect, label, font)
 
 
 def draw_total_atp_button(screen, button_rect, show_total_atp, font):
-    fill = (190, 220, 190) if show_total_atp else (230, 230, 230)
-    pygame.draw.rect(screen, fill, button_rect)
-    pygame.draw.rect(screen, (0, 0, 0), button_rect, 1)
-    text = font.render("Total ATP", True, (0, 0, 0))
-    screen.blit(
-        text,
-        (
-            button_rect.centerx - text.get_width() // 2,
-            button_rect.centery - text.get_height() // 2,
-        )
-    )
+    theme.draw_button(screen, button_rect, "Total ATP", font, selected=show_total_atp)
 
 
 def draw_pathway_tabs(screen, pathway_tab_rects, pathway_reactions, selected_tab, font, extra_section_heights=None):
-    pathway_colors = {
-        "Starting parameters": ((190, 224, 183), (226, 243, 222)),
-        "Glycolysis": ((183, 217, 255), (222, 239, 255)),
-        "Citric acid cycle": ((244, 206, 157), (252, 232, 205)),
-        "Fructose pathways": ((214, 190, 235), (237, 224, 247)),
-    }
-
     for pathway_name, tab_rect in pathway_tab_rects:
         has_reactions = pathway_name in (extra_section_heights or {}) or len(pathway_reactions[pathway_name]) > 0
-        selected_color, idle_color = pathway_colors.get(pathway_name, ((210, 230, 255), (230, 230, 230)))
+        selected_color, idle_color = theme.PATHWAY_COLORS.get(pathway_name, (theme.COLORS["accent_soft"], theme.COLORS["surface"]))
         if pathway_name == selected_tab:
             tab_color = selected_color
         elif has_reactions:
             tab_color = idle_color
         else:
-            tab_color = (225, 225, 225)
+            tab_color = theme.COLORS["disabled_fill"]
 
-        pygame.draw.rect(screen, tab_color, tab_rect)
-        pygame.draw.rect(screen, (0, 0, 0), tab_rect, 1)
-        tab_text_color = (0, 0, 0) if has_reactions else (120, 120, 120)
+        pygame.draw.rect(screen, tab_color, tab_rect, border_radius=6)
+        border_color = theme.COLORS["accent"] if pathway_name == selected_tab else theme.COLORS["border"]
+        pygame.draw.rect(screen, border_color, tab_rect, 1, border_radius=6)
+        tab_text_color = theme.COLORS["text"] if has_reactions else theme.COLORS["disabled_text"]
         tab_text = font.render(pathway_name, True, tab_text_color)
         screen.blit(
             tab_text,
@@ -134,8 +102,4 @@ def draw_pathway_tabs(screen, pathway_tab_rects, pathway_reactions, selected_tab
 
 def draw_reaction_buttons(screen, reaction_button_rects, selected_reaction, font):
     for reaction_name, button_rect in reaction_button_rects:
-        fill_color = (210, 230, 255) if reaction_name == selected_reaction else (230, 230, 230)
-        pygame.draw.rect(screen, fill_color, button_rect)
-        pygame.draw.rect(screen, (0, 0, 0), button_rect, 1)
-        button_text = font.render(reaction_name, True, (0, 0, 0))
-        screen.blit(button_text, (button_rect.x + 4, button_rect.y + 3))
+        theme.draw_button(screen, button_rect, reaction_name, font, selected=reaction_name == selected_reaction, align="left")

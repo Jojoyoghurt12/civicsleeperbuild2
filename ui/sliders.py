@@ -1,5 +1,7 @@
 import pygame
 
+from ui import theme
+
 
 class Slider:
     def __init__(self, min_value, max_value, initial_value, x, y, width, knob_radius, title):
@@ -26,13 +28,16 @@ class Slider:
         self.value = value
 
     def draw(self, screen):
-        font = pygame.font.SysFont(None, 24)
-        title_text = font.render(self.title, True, (0, 0, 0))
-        screen.blit(title_text, (self.x, self.y - 28))
-        pygame.draw.line(screen, (0, 0, 0), (self.x, self.y), (self.x + self.width, self.y), 5)
+        font = theme.font(20)
+        title_text = font.render(self.title, True, theme.COLORS["text"])
+        screen.blit(title_text, (self.x, self.y - 36))
+        pygame.draw.line(screen, theme.COLORS["border"], (self.x, self.y), (self.x + self.width, self.y), 6)
+        pygame.draw.line(screen, theme.COLORS["accent"], (self.x, self.y), (self.x + self.get_knob_position_fraction() * self.width, self.y), 6)
         knob_x = self.x + self.get_knob_position_fraction() * self.width
-        pygame.draw.circle(screen, self.knob_colour, (int(knob_x), self.y), self.knob_radius)
-        value_text = font.render(f"{self.value:.2f}", True, (0, 0, 0))
+        visual_knob_radius = max(5, self.knob_radius - 2)
+        pygame.draw.circle(screen, theme.COLORS["surface"], (int(knob_x), self.y), visual_knob_radius + 3)
+        pygame.draw.circle(screen, theme.COLORS["accent"], (int(knob_x), self.y), visual_knob_radius)
+        value_text = font.render(f"{self.value:.2f}", True, theme.COLORS["muted"])
         screen.blit(value_text, (self.x + self.width + 10, self.y - 12))
 
     def handle_event(self, event):

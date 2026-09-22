@@ -72,7 +72,7 @@ def make_fba_reaction(name, reactants, products, max_flow):
 def build_exchange_reactions():
     return [
         make_fba_reaction("glucose_uptake", {}, {"glucose": 1}, 10),
-        make_fba_reaction("fructose_uptake", {}, {"fructose": 1}, 10),
+        make_fba_reaction("fructose_uptake", {}, {"fructose": 1}, 0),
         make_fba_reaction("oxygen_uptake", {}, {"O2": 1}, 10),
         make_fba_reaction("CO2_export", {"CO2": 1}, {}, 10),
         make_fba_reaction("lactate_export", {"lactate": 1}, {}, 10),

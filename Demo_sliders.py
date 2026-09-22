@@ -15,23 +15,47 @@ from ui.controls import (
 from ui.fba_screen import FbaScreen
 from ui.graph import draw_axes, draw_curves, draw_legend, get_max_value, make_curves
 from ui.sliders import Slider, make_km_sliders
+from ui import theme
 
 
 pygame.init()
 
 WIDTH = 1500
 HEIGHT = 800
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Systems Biology Simulator")
+windowed_size = (WIDTH, HEIGHT)
+is_fullscreen = False
+screen = pygame.display.set_mode(windowed_size, pygame.RESIZABLE)
+pygame.display.set_caption("Systems Biology Simulator - F11 toggles fullscreen")
 
 clock = pygame.time.Clock()
 
 home_title = "Systems Biology Simulator"
 kinetics_button = pygame.Rect(WIDTH // 2 - 260, 360, 240, 72)
 flux_balance_button = pygame.Rect(WIDTH // 2 + 20, 360, 240, 72)
+exit_button = pygame.Rect(WIDTH // 2 - 120, 472, 240, 56)
 home_button = pygame.Rect(WIDTH - 118, 18, 90, 32)
 app_screen = "home"
 selected_simulation_mode = None
+
+
+def refresh_screen_layout():
+    kinetics_button.x = WIDTH // 2 - 260
+    flux_balance_button.x = WIDTH // 2 + 20
+    exit_button.x = WIDTH // 2 - exit_button.width // 2
+    home_button.x = WIDTH - 118
+
+
+def set_display_mode(fullscreen_enabled):
+    global screen, WIDTH, HEIGHT, is_fullscreen
+    is_fullscreen = fullscreen_enabled
+    if is_fullscreen:
+        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+    else:
+        screen = pygame.display.set_mode(windowed_size, pygame.RESIZABLE)
+    WIDTH, HEIGHT = screen.get_size()
+    refresh_screen_layout()
+    if "fba_screen" in globals():
+        fba_screen.screen = screen
 
 control_left = 390
 
@@ -44,9 +68,9 @@ button_height = 20
 button_gap = 6
 
 graph_left = control_left
-graph_top = 50
+graph_top = 90
 graph_width = 700
-graph_height = 450
+graph_height = 410
 
 step_button_size = 24
 step_button_gap = 8
@@ -118,45 +142,29 @@ curve_colors = [
 
 
 def draw_home_screen():
-    screen.fill((242, 246, 244))
-    title_font = pygame.font.SysFont(None, 72)
-    button_font = pygame.font.SysFont(None, 30)
-    subtitle_font = pygame.font.SysFont(None, 24)
+    screen.fill(theme.COLORS["background"])
+    title_font = theme.font(68, bold=True)
+    button_font = theme.font(28, bold=True)
+    subtitle_font = theme.font(24)
 
-    title_text = title_font.render(home_title, True, (20, 36, 32))
+    title_text = title_font.render(home_title, True, theme.COLORS["text"])
     screen.blit(title_text, (WIDTH // 2 - title_text.get_width() // 2, 210))
 
-    subtitle_text = subtitle_font.render("Choose a simulation mode", True, (70, 86, 82))
+    subtitle_text = subtitle_font.render("Choose a simulation mode", True, theme.COLORS["muted"])
     screen.blit(subtitle_text, (WIDTH // 2 - subtitle_text.get_width() // 2, 290))
 
     buttons = [
-        (kinetics_button, "Kinetics sim", (196, 226, 211)),
-        (flux_balance_button, "Flux Balance sim", (205, 220, 240)),
+        (kinetics_button, "Kinetics sim"),
+        (flux_balance_button, "Flux Balance sim"),
     ]
-    for button_rect, label, fill_color in buttons:
-        pygame.draw.rect(screen, fill_color, button_rect)
-        pygame.draw.rect(screen, (30, 45, 42), button_rect, 2)
-        button_text = button_font.render(label, True, (20, 36, 32))
-        screen.blit(
-            button_text,
-            (
-                button_rect.centerx - button_text.get_width() // 2,
-                button_rect.centery - button_text.get_height() // 2,
-            )
-        )
+    for button_rect, label in buttons:
+        theme.draw_button(screen, button_rect, label, button_font)
+
+    theme.draw_danger_button(screen, exit_button, "Exit", button_font)
 
 
 def draw_home_button(font):
-    pygame.draw.rect(screen, (230, 235, 232), home_button)
-    pygame.draw.rect(screen, (30, 45, 42), home_button, 1)
-    button_text = font.render("Home", True, (20, 36, 32))
-    screen.blit(
-        button_text,
-        (
-            home_button.centerx - button_text.get_width() // 2,
-            home_button.centery - button_text.get_height() // 2,
-        )
-    )
+    theme.draw_button(screen, home_button, "Home", font)
 
 
 def run_simulation():
@@ -237,7 +245,7 @@ results = run_simulation()
 max_value = get_max_value(results, show_total_atp, hidden_metabolites)
 curves = make_curves(results, curve_colors, show_total_atp)
 
-button_font = pygame.font.SysFont(None, 18)
+button_font = theme.font(16)
 pathway_tab_rects, reaction_button_rects = make_sidebar_rects()
 pathway_metabolites = make_pathway_metabolites(pathway_reactions, reaction_params)
 fba_screen = FbaScreen(
@@ -271,6 +279,16 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+            set_display_mode(not is_fullscreen)
+
+        if event.type == pygame.VIDEORESIZE and not is_fullscreen:
+            windowed_size = (event.w, event.h)
+            screen = pygame.display.set_mode(windowed_size, pygame.RESIZABLE)
+            WIDTH, HEIGHT = screen.get_size()
+            refresh_screen_layout()
+            fba_screen.screen = screen
+
         if app_screen == "home":
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if kinetics_button.collidepoint(event.pos):
@@ -280,6 +298,8 @@ while running:
                     app_screen = "flux_balance"
                     selected_simulation_mode = "Flux Balance sim"
                     fba_screen.update_simulation()
+                elif exit_button.collidepoint(event.pos):
+                    running = False
             continue
 
         if app_screen == "flux_balance":
@@ -391,7 +411,7 @@ while running:
         clock.tick(60)
         continue
 
-    screen.fill((245, 245, 245))
+    screen.fill(theme.COLORS["background"])
 
     for substrate, slider in km_sliders:
         slider.draw(screen)
@@ -400,16 +420,25 @@ while running:
         for slider in starting_parameter_sliders:
             slider.draw(screen)
 
-    step_font = pygame.font.SysFont(None, 24)
+    step_font = theme.font(22)
     draw_km_step_buttons(screen, km_sliders, step_button_size, step_button_gap, step_font)
     draw_step_buttons(screen, max_flow_step_buttons, step_font)
     if selected_sidebar_tab == parameter_tab_name:
         draw_step_buttons(screen, starting_parameter_step_buttons, step_font)
         draw_total_atp_button(screen, total_atp_button, show_total_atp, step_font)
 
-    selected_font = pygame.font.SysFont(None, 24)
-    selected_text = selected_font.render(f"mode: {selected_simulation_mode} | selected pathway: {selected_pathway} | selected reaction: {selected_reaction}", True, (0, 0, 0))
-    screen.blit(selected_text, (control_left, 610))
+    title_font = theme.font(34, bold=True)
+    title_text = title_font.render("Kinetics Simulation", True, theme.COLORS["text"])
+    screen.blit(title_text, (control_left, 30))
+
+    selected_font = theme.font(22)
+    selected_bold_font = theme.font(22, bold=True)
+    status_y = 580
+    status_prefix = f"mode: {selected_simulation_mode} | selected pathway: {selected_pathway} | selected reaction: "
+    selected_text = selected_font.render(status_prefix, True, theme.COLORS["muted"])
+    selected_reaction_text = selected_bold_font.render(selected_reaction, True, theme.COLORS["text"])
+    screen.blit(selected_text, (control_left, status_y))
+    screen.blit(selected_reaction_text, (control_left + selected_text.get_width(), status_y))
     draw_home_button(selected_font)
 
     draw_pathway_tabs(screen, pathway_tab_rects, pathway_reactions, selected_sidebar_tab, button_font, sidebar_extra_section_heights)

@@ -1,6 +1,8 @@
 import math
 import pygame
 
+from ui import theme
+
 TOTAL_ATP_LABEL = "Total ATP"
 
 
@@ -55,16 +57,18 @@ def get_max_value(results, show_total_atp, hidden_metabolites=None):
 
 def draw_axes(screen, results, graph_left, graph_top, graph_width, graph_height, max_value):
     graph_bottom = graph_top + graph_height
-    pygame.draw.line(screen, (0, 0, 0), (graph_left, graph_bottom), (graph_left + graph_width, graph_bottom), 2)
-    pygame.draw.line(screen, (0, 0, 0), (graph_left, graph_top), (graph_left, graph_bottom), 2)
+    graph_rect = pygame.Rect(graph_left - 12, graph_top - 12, graph_width + 24, graph_height + 24)
+    theme.draw_panel(screen, graph_rect)
+    pygame.draw.line(screen, theme.COLORS["border_strong"], (graph_left, graph_bottom), (graph_left + graph_width, graph_bottom), 2)
+    pygame.draw.line(screen, theme.COLORS["border_strong"], (graph_left, graph_top), (graph_left, graph_bottom), 2)
 
-    axis_font = pygame.font.SysFont(None, 20)
-    axis_title_font = pygame.font.SysFont(None, 26)
+    axis_font = theme.font(17)
+    axis_title_font = theme.font(22)
 
-    x_title = axis_title_font.render("Time", True, (0, 0, 0))
+    x_title = axis_title_font.render("Time", True, theme.COLORS["text"])
     screen.blit(x_title, (graph_left + graph_width // 2 - x_title.get_width() // 2, graph_bottom + 35))
 
-    y_title = axis_title_font.render("Amount", True, (0, 0, 0))
+    y_title = axis_title_font.render("Amount", True, theme.COLORS["text"])
     screen.blit(y_title, (graph_left, graph_top - 30))
 
     x_tick_count = 5
@@ -74,8 +78,9 @@ def draw_axes(screen, results, graph_left, graph_top, graph_width, graph_height,
         x = graph_left + fraction * graph_width
         y = graph_bottom
         time_value = int(fraction * (time_steps - 1))
-        pygame.draw.line(screen, (0, 0, 0), (x, y), (x, y + 6), 2)
-        text = axis_font.render(str(time_value), True, (0, 0, 0))
+        pygame.draw.line(screen, theme.COLORS["surface_alt"], (x, graph_top), (x, graph_bottom), 1)
+        pygame.draw.line(screen, theme.COLORS["border_strong"], (x, y), (x, y + 6), 2)
+        text = axis_font.render(str(time_value), True, theme.COLORS["muted"])
         screen.blit(text, (x - 10, y + 10))
 
     y_tick_count = 5
@@ -84,8 +89,9 @@ def draw_axes(screen, results, graph_left, graph_top, graph_width, graph_height,
         x = graph_left
         y = graph_bottom - fraction * graph_height
         value = fraction * max_value
-        pygame.draw.line(screen, (0, 0, 0), (x - 6, y), (x, y), 2)
-        text = axis_font.render(f"{value:.0f}", True, (0, 0, 0))
+        pygame.draw.line(screen, theme.COLORS["surface_alt"], (graph_left, y), (graph_left + graph_width, y), 1)
+        pygame.draw.line(screen, theme.COLORS["border_strong"], (x - 6, y), (x, y), 2)
+        text = axis_font.render(f"{value:.0f}", True, theme.COLORS["muted"])
         screen.blit(text, (x - 45, y - 8))
 
 
@@ -110,8 +116,8 @@ def draw_curves(screen, curves, graph_left, graph_top, graph_width, graph_height
 
 def draw_legend(screen, curves, graph_left, graph_top, graph_width, highlighted_metabolite, pathway_metabolites, selected_legend_pathway, hidden_metabolites=None):
     hidden_metabolites = hidden_metabolites or set()
-    legend_font = pygame.font.SysFont(None, 24)
-    toggle_font = pygame.font.SysFont(None, 18)
+    legend_font = theme.font(20)
+    toggle_font = theme.font(15)
     legend_x = graph_left + graph_width + 30
     legend_y = graph_top + 20
     legend_button_rects = []
@@ -137,47 +143,38 @@ def draw_legend(screen, curves, graph_left, graph_top, graph_width, highlighted_
         toggle_width = 58
         if show_toggle:
             toggle_rect = pygame.Rect(accordion_right - toggle_width, item_y - 14, toggle_width, 22)
-            legend_rect = pygame.Rect(item_x - 6, item_y - 14, toggle_rect.x - item_x, 22)
+            legend_rect = pygame.Rect(item_x - 8, item_y - 15, toggle_rect.x - item_x - 4, 30)
             legend_toggle_button_rects.append((label, toggle_rect))
         else:
             toggle_rect = None
-            legend_rect = pygame.Rect(item_x - 6, item_y - 14, 124, 22)
+            label_width = legend_font.size(label)[0]
+            legend_rect = pygame.Rect(item_x - 8, item_y - 15, 35 + label_width + 12, 30)
         legend_button_rects.append((label, legend_rect))
         if label == highlighted_metabolite:
-            pygame.draw.rect(screen, (220, 235, 255), legend_rect)
-            pygame.draw.rect(screen, (60, 110, 180), legend_rect, 1)
+            pygame.draw.rect(screen, theme.COLORS["info_soft"], legend_rect, border_radius=4)
+            pygame.draw.rect(screen, theme.COLORS["info"], legend_rect, 1, border_radius=4)
 
         legend_line_width = 7 if label == highlighted_metabolite else 4
         item_color = (150, 150, 150) if label in hidden_metabolites else color
-        text_color = (120, 120, 120) if label in hidden_metabolites else (0, 0, 0)
+        text_color = theme.COLORS["disabled_text"] if label in hidden_metabolites else theme.COLORS["text"]
         pygame.draw.line(screen, item_color, (item_x, item_y), (item_x + 25, item_y), legend_line_width)
         label_text = legend_font.render(label, True, text_color)
         screen.blit(label_text, (item_x + 35, item_y - 10))
 
         if show_toggle:
-            toggle_fill = (210, 230, 210) if label not in hidden_metabolites else (230, 230, 230)
-            pygame.draw.rect(screen, toggle_fill, toggle_rect)
-            pygame.draw.rect(screen, (0, 0, 0), toggle_rect, 1)
-            toggle_text = toggle_font.render("toggle", True, (0, 0, 0))
-            screen.blit(
-                toggle_text,
-                (
-                    toggle_rect.centerx - toggle_text.get_width() // 2,
-                    toggle_rect.centery - toggle_text.get_height() // 2,
-                )
-            )
+            theme.draw_button(screen, toggle_rect, "toggle", toggle_font, selected=label not in hidden_metabolites)
 
     def draw_pathway_tab(pathway_name, tab_rect, has_metabolites, pathway_curves):
         if pathway_name == selected_legend_pathway:
-            fill_color = (210, 230, 255)
+            fill_color = theme.COLORS["info_soft"]
         elif has_metabolites:
-            fill_color = (235, 235, 235)
+            fill_color = theme.COLORS["surface"]
         else:
-            fill_color = (225, 225, 225)
+            fill_color = theme.COLORS["disabled_fill"]
 
-        pygame.draw.rect(screen, fill_color, tab_rect)
-        pygame.draw.rect(screen, (0, 0, 0), tab_rect, 1)
-        text_color = (0, 0, 0) if has_metabolites else (120, 120, 120)
+        pygame.draw.rect(screen, fill_color, tab_rect, border_radius=6)
+        pygame.draw.rect(screen, theme.COLORS["border"], tab_rect, 1, border_radius=6)
+        text_color = theme.COLORS["text"] if has_metabolites else theme.COLORS["disabled_text"]
         tab_text = legend_font.render(pathway_name, True, text_color)
         screen.blit(tab_text, (tab_rect.x + 6, tab_rect.centery - tab_text.get_height() // 2))
 
@@ -185,17 +182,7 @@ def draw_legend(screen, curves, graph_left, graph_top, graph_width, highlighted_
             toggle_rect = pygame.Rect(tab_rect.right - 74, tab_rect.y + 2, 68, tab_rect.height - 4)
             pathway_labels = [label for label, values, color in pathway_curves]
             all_hidden = all(label in hidden_metabolites for label in pathway_labels)
-            toggle_fill = (210, 230, 210) if all_hidden else (230, 230, 230)
-            pygame.draw.rect(screen, toggle_fill, toggle_rect)
-            pygame.draw.rect(screen, (0, 0, 0), toggle_rect, 1)
-            toggle_text = toggle_font.render("all on" if all_hidden else "all off", True, (0, 0, 0))
-            screen.blit(
-                toggle_text,
-                (
-                    toggle_rect.centerx - toggle_text.get_width() // 2,
-                    toggle_rect.centery - toggle_text.get_height() // 2,
-                )
-            )
+            theme.draw_button(screen, toggle_rect, "all on" if all_hidden else "all off", toggle_font, selected=all_hidden)
             legend_pathway_toggle_button_rects.append((pathway_name, pathway_labels, toggle_rect))
 
     for i, (label, values, color) in enumerate(primary_curves):
@@ -205,7 +192,7 @@ def draw_legend(screen, curves, graph_left, graph_top, graph_width, highlighted_
         draw_legend_item(label, color, legend_x + 165, legend_y + i * 25, False)
 
     top_group_height = max(len(primary_curves), len(cofactor_curves)) * 25
-    divider_color = (170, 170, 170)
+    divider_color = theme.COLORS["border"]
     metabolite_top = legend_y + top_group_height + 18
     if metabolite_curves and (primary_curves or cofactor_curves):
         divider_y = metabolite_top - 20

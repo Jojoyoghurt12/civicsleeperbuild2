@@ -81,13 +81,23 @@ DEFAULT_REACTION_PARAMS = {
     "enolase": {"km": {"2PG": 0.125}, "max_flow": 1},
     "enolase_r": {"km": {"PEP": 0.125}, "max_flow": 0.05},
     "pyruvate_kinase": {"km": {"PEP": 0.375, "ADP": 0.30}, "max_flow": 1},
-    "pyruvate_energy_yield": {"km": {"pyruvate": 0.10, "ADP": 0.30, "Pi": 1.00}, "max_flow": 0.5},
     "lactate_dehydrogenase": {"km": {"pyruvate": 0.10, "NADH": 0.01}, "max_flow": 1},
-    "mitochondrial_NADH_oxidation": {"km": {"NADH": 0.05}, "max_flow": 2},
+    "mitochondrial_NADH_oxidation": {"km": {"NADH": 0.05, "ADP": 0.10, "Pi": 1.00}, "max_flow": 2},
+    "mitochondrial_FADH2_oxidation": {"km": {"FADH2": 0.05, "ADP": 0.10, "Pi": 1.00}, "max_flow": 2},
     "ATP_hydrolysis": {"km": {"current_ATP": 1.00}, "max_flow": 0.3},
     "fructokinase": {"km": {"fructose": 0.50, "current_ATP": 0.10}, "max_flow": 1},
     "aldolase_B": {"km": {"F1P": 0.20}, "max_flow": 1},
     "triose_kinase": {"km": {"glyceraldehyde": 0.30, "current_ATP": 0.10}, "max_flow": 1},
+    "pyruvate_dehydrogenase": {"km": {"pyruvate": 0.10, "NAD+": 0.05, "CoA": 0.01}, "max_flow": 1},
+    "pyruvate_carboxylase": {"km": {"pyruvate": 0.10, "current_ATP": 0.05, "CO2": 0.01}, "max_flow": 1},
+    "citrate_synthase": {"km": {"oxaloacetate": 0.003, "acetyl_CoA": 0.013}, "max_flow": 1},
+    "aconitase": {"km": {"citrate": 0.45}, "max_flow": 1},
+    "isocitrate_dehydrogenase": {"km": {"isocitrate": 0.0225, "NAD+": 0.07}, "max_flow": 1},
+    "alpha_ketoglutarate_dehydrogenase": {"km": {"alpha_ketoglutarate": 0.11, "NAD+": 0.05, "CoA": 0.0035}, "max_flow": 1},
+    "succinyl_CoA_synthetase": {"km": {"succinyl_CoA": 0.01, "ADP": 0.0225, "Pi": 1.00}, "max_flow": 1},
+    "succinate_dehydrogenase": {"km": {"succinate": 0.40, "FAD": 0.05}, "max_flow": 1},
+    "fumarase": {"km": {"fumarate": 0.035}, "max_flow": 1},
+    "malate_dehydrogenase": {"km": {"malate": 0.30, "NAD+": 0.075}, "max_flow": 1}
 }
 
 
@@ -173,25 +183,30 @@ def build_reactions(params):
         reaction_definition("enolase", {"2PG": 1}, {"PEP": 1}, params),
         reaction_definition("enolase_r", {"PEP": 1}, {"2PG": 1}, params),
         reaction_definition("pyruvate_kinase", {"PEP": 1, "ADP": 1}, {"pyruvate": 1, "current_ATP": 1, "glycolytic_ATP": 1}, params, inhibitors={"current_ATP": 2.0}, activators={"F16BP": 0.1}),
-        reaction_definition("pyruvate_energy_yield", {"pyruvate": 1, "ADP": 15, "Pi": 15}, {"current_ATP": 15, "aerobic_ATP": 15}, params),
         reaction_definition("lactate_dehydrogenase", {"pyruvate": 1, "NADH": 1}, {"lactate": 1, "NAD+": 1}, params, inhibitors={"NAD+": 0.5}),
-        reaction_definition("mitochondrial_NADH_oxidation", {"NADH": 1}, {"NAD+": 1}, params),
+        reaction_definition("mitochondrial_NADH_oxidation", {"NADH": 1, "ADP": 2.5, "Pi": 2.5}, {"NAD+": 1, "current_ATP": 2.5, "aerobic_ATP": 2.5}, params),
+        reaction_definition("mitochondrial_FADH2_oxidation", {"FADH2": 1, "ADP": 1.5, "Pi": 1.5}, {"FAD": 1, "current_ATP": 1.5, "aerobic_ATP": 1.5}, params),
         reaction_definition("ATP_hydrolysis", {"current_ATP": 1}, {"ADP": 1, "Pi": 1}, params),
         reaction_definition("fructokinase", {"fructose": 1, "current_ATP": 1}, {"F1P": 1, "ADP": 1}, params),
         reaction_definition("aldolase_B", {"F1P": 1}, {"DHAP": 1, "glyceraldehyde": 1}, params),
         reaction_definition("triose_kinase", {"glyceraldehyde": 1, "current_ATP": 1}, {"G3P": 1, "ADP": 1}, params),
+        reaction_definition("pyruvate_dehydrogenase", {"pyruvate": 1, "NAD+": 1, "CoA": 1}, {"acetyl_CoA": 1, "NADH": 1, "CO2": 1}, params),
+        reaction_definition("pyruvate_carboxylase", {"pyruvate": 1, "current_ATP": 1, "CO2": 1}, {"oxaloacetate": 1, "ADP": 1, "Pi": 1}, params),
+        reaction_definition("citrate_synthase", {"oxaloacetate": 1, "acetyl_CoA": 1}, {"citrate": 1, "CoA": 1}, params),
+        reaction_definition("aconitase", {"citrate": 1}, {"isocitrate": 1}, params),
+        reaction_definition("isocitrate_dehydrogenase", {"isocitrate": 1, "NAD+": 1}, {"alpha_ketoglutarate": 1, "NADH": 1, "CO2": 1}, params),
+        reaction_definition("alpha_ketoglutarate_dehydrogenase", {"alpha_ketoglutarate": 1, "NAD+": 1, "CoA": 1}, {"succinyl_CoA": 1, "NADH": 1, "CO2": 1}, params),
+        reaction_definition("succinyl_CoA_synthetase", {"succinyl_CoA": 1, "ADP": 1, "Pi": 1}, {"succinate": 1, "GTP": 1, "CoA": 1}, params),
+        reaction_definition("succinate_dehydrogenase", {"succinate": 1, "FAD": 1}, {"fumarate": 1, "FADH2": 1}, params),
+        reaction_definition("fumarase", {"fumarate": 1}, {"malate": 1}, params),
+        reaction_definition("malate_dehydrogenase", {"malate": 1, "NAD+": 1}, {"oxaloacetate": 1, "NADH": 1}, params),
+        
     ]
 
 
 # computational loop
-def comp_loop(reaction_params=None, start_slid=100, atp_start=100, fructose_start=0, oxygen_level=1.0, simulation_steps=10000):
-    params = copy_reaction_params(reaction_params)
-    oxygen_level = max(0, min(1, oxygen_level))
-    simulation_steps = max(2, int(simulation_steps))
-    params["pyruvate_energy_yield"]["max_flow"] *= oxygen_level
-    params["mitochondrial_NADH_oxidation"]["max_flow"] *= oxygen_level
-
-    metabolites = {
+def make_initial_metabolites(start_slid=100, atp_start=100, fructose_start=0, coa_start=0.1):
+    return {
         "glucose": start_slid,
         "fructose": fructose_start,
         "current_ATP": atp_start,
@@ -201,7 +216,11 @@ def comp_loop(reaction_params=None, start_slid=100, atp_start=100, fructose_star
         "aerobic_ATP": 0,
         "NAD+": max(0.1, start_slid * 0.2),
         "NADH": max(0.01, start_slid * 0.02),
+        "FAD": max(0.1, start_slid * 0.05),
+        "FADH2": 0,
         "Pi": max(1.0, start_slid * 2.0),
+        "GTP": 0,
+        "CO2": max(0.1, start_slid * 0.1),
         "G6P": 0,
         "F6P": 0,
         "F16BP": 0,
@@ -215,9 +234,29 @@ def comp_loop(reaction_params=None, start_slid=100, atp_start=100, fructose_star
         "lactate": 0,
         "F1P": 0,
         "glyceraldehyde": 0,
+        "CoA": coa_start,
+        "acetyl_CoA": 0,
+        "oxaloacetate": 0,
+        "citrate": 0,
+        "isocitrate": 0,
+        "alpha_ketoglutarate": 0,
+        "succinyl_CoA": 0,
+        "succinate": 0,
+        "fumarate": 0,
+        "malate": 0,
         "Total ATP": atp_start,
 
     }
+
+
+def comp_loop(reaction_params=None, start_slid=100, atp_start=100, fructose_start=0, coa_start=0.1, oxygen_level=1.0, simulation_steps=10000):
+    params = copy_reaction_params(reaction_params)
+    oxygen_level = max(0, min(1, oxygen_level))
+    simulation_steps = max(2, int(simulation_steps))
+    params["mitochondrial_NADH_oxidation"]["max_flow"] *= oxygen_level
+    params["mitochondrial_FADH2_oxidation"]["max_flow"] *= oxygen_level
+
+    metabolites = make_initial_metabolites(start_slid, atp_start, fructose_start, coa_start)
 
     reactions = build_reactions(params)
 

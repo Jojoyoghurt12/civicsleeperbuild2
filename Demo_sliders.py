@@ -12,6 +12,7 @@ from ui.controls import (
     make_reaction_button_rects,
     make_step_button_rects,
 )
+from ui.fba_screen import FbaScreen
 from ui.graph import draw_axes, draw_curves, draw_legend, get_max_value, make_curves
 from ui.sliders import Slider, make_km_sliders
 
@@ -21,9 +22,16 @@ pygame.init()
 WIDTH = 1500
 HEIGHT = 800
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Flux Dynamics Demo")
+pygame.display.set_caption("Systems Biology Simulator")
 
 clock = pygame.time.Clock()
+
+home_title = "Systems Biology Simulator"
+kinetics_button = pygame.Rect(WIDTH // 2 - 260, 360, 240, 72)
+flux_balance_button = pygame.Rect(WIDTH // 2 + 20, 360, 240, 72)
+home_button = pygame.Rect(WIDTH - 118, 18, 90, 32)
+app_screen = "home"
+selected_simulation_mode = None
 
 control_left = 390
 
@@ -52,7 +60,7 @@ parameter_control_left = button_left + 12
 parameter_slider_top = tab_top + tab_height + button_gap + 28
 parameter_slider_width = 210
 parameter_slider_gap = 64
-sidebar_extra_section_heights = {parameter_tab_name: 390}
+sidebar_extra_section_heights = {parameter_tab_name: 454}
 selected_pathway = "Glycolysis"
 selected_sidebar_tab = None
 selected_reaction = pathway_reactions[selected_pathway][0]
@@ -62,9 +70,10 @@ selected_max_flow = Slider(0, 5, reaction_params[selected_reaction]["max_flow"],
 start_slid = Slider(0, 5, 2, parameter_control_left, parameter_slider_top, parameter_slider_width, 10, "glucose start")
 fructose_slid = Slider(0, 5, 0, parameter_control_left, parameter_slider_top + parameter_slider_gap, parameter_slider_width, 10, "fructose start")
 atp_slid = Slider(0, 10, 5, parameter_control_left, parameter_slider_top + 2 * parameter_slider_gap, parameter_slider_width, 10, "initial ATP")
-oxygen_slid = Slider(0, 1, 1, parameter_control_left, parameter_slider_top + 3 * parameter_slider_gap, parameter_slider_width, 10, "oxygen")
-time_slid = Slider(100, 4000, 400, parameter_control_left, parameter_slider_top + 4 * parameter_slider_gap, parameter_slider_width, 10, "time steps")
-starting_parameter_sliders = [start_slid, fructose_slid, atp_slid, oxygen_slid, time_slid]
+coa_slid = Slider(0, 5, 0.1, parameter_control_left, parameter_slider_top + 3 * parameter_slider_gap, parameter_slider_width, 10, "CoA start")
+oxygen_slid = Slider(0, 1, 1, parameter_control_left, parameter_slider_top + 4 * parameter_slider_gap, parameter_slider_width, 10, "oxygen")
+time_slid = Slider(100, 4000, 400, parameter_control_left, parameter_slider_top + 5 * parameter_slider_gap, parameter_slider_width, 10, "time steps")
+starting_parameter_sliders = [start_slid, fructose_slid, atp_slid, coa_slid, oxygen_slid, time_slid]
 
 show_total_atp = True
 highlighted_metabolite = None
@@ -72,8 +81,9 @@ hidden_metabolites = set()
 legend_button_rects = []
 legend_pathway_tab_rects = []
 legend_toggle_button_rects = []
+legend_pathway_toggle_button_rects = []
 selected_legend_pathway = None
-total_atp_button = pygame.Rect(parameter_control_left, parameter_slider_top + 320, 210, 28)
+total_atp_button = pygame.Rect(parameter_control_left, parameter_slider_top + 384, 210, 28)
 
 max_flow_step_buttons = make_step_button_rects([
     (selected_max_flow, 1.0),
@@ -82,6 +92,7 @@ starting_parameter_step_buttons = make_step_button_rects([
     (start_slid, 0.2),
     (fructose_slid, 0.2),
     (atp_slid, 0.5),
+    (coa_slid, 0.1),
     (oxygen_slid, 0.1),
     (time_slid, 100),
 ])
@@ -106,12 +117,55 @@ curve_colors = [
 ]
 
 
+def draw_home_screen():
+    screen.fill((242, 246, 244))
+    title_font = pygame.font.SysFont(None, 72)
+    button_font = pygame.font.SysFont(None, 30)
+    subtitle_font = pygame.font.SysFont(None, 24)
+
+    title_text = title_font.render(home_title, True, (20, 36, 32))
+    screen.blit(title_text, (WIDTH // 2 - title_text.get_width() // 2, 210))
+
+    subtitle_text = subtitle_font.render("Choose a simulation mode", True, (70, 86, 82))
+    screen.blit(subtitle_text, (WIDTH // 2 - subtitle_text.get_width() // 2, 290))
+
+    buttons = [
+        (kinetics_button, "Kinetics sim", (196, 226, 211)),
+        (flux_balance_button, "Flux Balance sim", (205, 220, 240)),
+    ]
+    for button_rect, label, fill_color in buttons:
+        pygame.draw.rect(screen, fill_color, button_rect)
+        pygame.draw.rect(screen, (30, 45, 42), button_rect, 2)
+        button_text = button_font.render(label, True, (20, 36, 32))
+        screen.blit(
+            button_text,
+            (
+                button_rect.centerx - button_text.get_width() // 2,
+                button_rect.centery - button_text.get_height() // 2,
+            )
+        )
+
+
+def draw_home_button(font):
+    pygame.draw.rect(screen, (230, 235, 232), home_button)
+    pygame.draw.rect(screen, (30, 45, 42), home_button, 1)
+    button_text = font.render("Home", True, (20, 36, 32))
+    screen.blit(
+        button_text,
+        (
+            home_button.centerx - button_text.get_width() // 2,
+            home_button.centery - button_text.get_height() // 2,
+        )
+    )
+
+
 def run_simulation():
     return engine.comp_loop(
         reaction_params=reaction_params,
         start_slid=start_slid.value,
         atp_start=atp_slid.value,
         fructose_start=fructose_slid.value,
+        coa_start=coa_slid.value,
         oxygen_level=oxygen_slid.value,
         simulation_steps=time_slid.value,
     )
@@ -186,6 +240,28 @@ curves = make_curves(results, curve_colors, show_total_atp)
 button_font = pygame.font.SysFont(None, 18)
 pathway_tab_rects, reaction_button_rects = make_sidebar_rects()
 pathway_metabolites = make_pathway_metabolites(pathway_reactions, reaction_params)
+fba_screen = FbaScreen(
+    screen,
+    pathway_reactions,
+    reaction_params,
+    {
+        "glucose": start_slid,
+        "fructose": fructose_slid,
+        "atp": atp_slid,
+        "coa": coa_slid,
+        "oxygen": oxygen_slid,
+        "time": time_slid,
+    },
+    home_button,
+    control_left,
+    button_left,
+    tab_top,
+    tab_width,
+    tab_height,
+    button_width,
+    button_height,
+    button_gap,
+)
 
 running = True
 while running:
@@ -195,7 +271,29 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+        if app_screen == "home":
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if kinetics_button.collidepoint(event.pos):
+                    app_screen = "kinetics"
+                    selected_simulation_mode = "Kinetics sim"
+                elif flux_balance_button.collidepoint(event.pos):
+                    app_screen = "flux_balance"
+                    selected_simulation_mode = "Flux Balance sim"
+                    fba_screen.update_simulation()
+            continue
+
+        if app_screen == "flux_balance":
+            if fba_screen.handle_event(event) == "home":
+                app_screen = "home"
+                selected_simulation_mode = None
+            continue
+
         if event.type == pygame.MOUSEBUTTONDOWN:
+            if home_button.collidepoint(event.pos):
+                app_screen = "home"
+                selected_simulation_mode = None
+                continue
+
             if selected_sidebar_tab == parameter_tab_name and total_atp_button.collidepoint(event.pos):
                 show_total_atp = not show_total_atp
                 max_value = get_max_value(results, show_total_atp, hidden_metabolites)
@@ -213,8 +311,18 @@ while running:
                 if legend_rect.collidepoint(event.pos):
                     highlighted_metabolite = None if highlighted_metabolite == legend_label else legend_label
 
+            legend_pathway_toggle_clicked = False
+            for pathway_name, pathway_labels, toggle_rect in legend_pathway_toggle_button_rects:
+                if toggle_rect.collidepoint(event.pos):
+                    if all(label in hidden_metabolites for label in pathway_labels):
+                        hidden_metabolites.difference_update(pathway_labels)
+                    else:
+                        hidden_metabolites.update(pathway_labels)
+                    max_value = get_max_value(results, show_total_atp, hidden_metabolites)
+                    legend_pathway_toggle_clicked = True
+
             for pathway_name, tab_rect in legend_pathway_tab_rects:
-                if tab_rect.collidepoint(event.pos):
+                if not legend_pathway_toggle_clicked and tab_rect.collidepoint(event.pos):
                     selected_legend_pathway = None if selected_legend_pathway == pathway_name else pathway_name
 
             for pathway_name, tab_rect in pathway_tab_rects:
@@ -271,6 +379,18 @@ while running:
     if slider_changed:
         update_simulation()
 
+    if app_screen == "home":
+        draw_home_screen()
+        pygame.display.flip()
+        clock.tick(60)
+        continue
+
+    if app_screen == "flux_balance":
+        fba_screen.draw()
+        pygame.display.flip()
+        clock.tick(60)
+        continue
+
     screen.fill((245, 245, 245))
 
     for substrate, slider in km_sliders:
@@ -288,15 +408,16 @@ while running:
         draw_total_atp_button(screen, total_atp_button, show_total_atp, step_font)
 
     selected_font = pygame.font.SysFont(None, 24)
-    selected_text = selected_font.render(f"selected pathway: {selected_pathway} | selected reaction: {selected_reaction}", True, (0, 0, 0))
+    selected_text = selected_font.render(f"mode: {selected_simulation_mode} | selected pathway: {selected_pathway} | selected reaction: {selected_reaction}", True, (0, 0, 0))
     screen.blit(selected_text, (control_left, 610))
+    draw_home_button(selected_font)
 
     draw_pathway_tabs(screen, pathway_tab_rects, pathway_reactions, selected_sidebar_tab, button_font, sidebar_extra_section_heights)
     draw_reaction_buttons(screen, reaction_button_rects, selected_reaction, button_font)
 
     draw_axes(screen, results, graph_left, graph_top, graph_width, graph_height, max_value)
     draw_curves(screen, curves, graph_left, graph_top, graph_width, graph_height, max_value, highlighted_metabolite, draw_downsample_step, hidden_metabolites)
-    legend_button_rects, legend_pathway_tab_rects, legend_toggle_button_rects = draw_legend(
+    legend_button_rects, legend_pathway_tab_rects, legend_toggle_button_rects, legend_pathway_toggle_button_rects = draw_legend(
         screen,
         curves,
         graph_left,

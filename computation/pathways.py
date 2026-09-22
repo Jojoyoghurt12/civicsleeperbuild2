@@ -19,10 +19,22 @@ GLYCOLYSIS_REACTIONS = [
     "pyruvate_energy_yield",
     "lactate_dehydrogenase",
     "mitochondrial_NADH_oxidation",
+    "mitochondrial_FADH2_oxidation",
     "ATP_hydrolysis",
 ]
 
-CITRIC_ACID_CYCLE_REACTIONS = []
+CITRIC_ACID_CYCLE_REACTIONS = [
+    "pyruvate_dehydrogenase",
+    "pyruvate_carboxylase",
+    "citrate_synthase",
+    "aconitase",
+    "isocitrate_dehydrogenase",
+    "alpha_ketoglutarate_dehydrogenase",
+    "succinyl_CoA_synthetase",
+    "succinate_dehydrogenase",
+    "fumarase",
+    "malate_dehydrogenase"
+]
 FRUCTOSE_PATHWAY_REACTIONS = [
     "fructokinase",
     "aldolase_B",

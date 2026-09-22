@@ -117,6 +117,7 @@ def draw_legend(screen, curves, graph_left, graph_top, graph_width, highlighted_
     legend_button_rects = []
     legend_pathway_tab_rects = []
     legend_toggle_button_rects = []
+    legend_pathway_toggle_button_rects = []
     primary_curves = []
     cofactor_curves = []
     metabolite_curves = []
@@ -124,9 +125,9 @@ def draw_legend(screen, curves, graph_left, graph_top, graph_width, highlighted_
     for curve in curves:
         label = curve[0]
         label_lower = label.lower()
-        if label_lower in ("glucose", "fructose") or "atp" in label_lower:
+        if label_lower in ("glucose", "fructose", "gtp") or "atp" in label_lower:
             primary_curves.append(curve)
-        elif label_lower in ("nadh", "pi", "adp", "nad+"):
+        elif label_lower in ("nadh", "pi", "adp", "nad+", "fad", "fadh2", "co2"):
             cofactor_curves.append(curve)
         else:
             metabolite_curves.append(curve)
@@ -166,7 +167,7 @@ def draw_legend(screen, curves, graph_left, graph_top, graph_width, highlighted_
                 )
             )
 
-    def draw_pathway_tab(pathway_name, tab_rect, has_metabolites):
+    def draw_pathway_tab(pathway_name, tab_rect, has_metabolites, pathway_curves):
         if pathway_name == selected_legend_pathway:
             fill_color = (210, 230, 255)
         elif has_metabolites:
@@ -179,6 +180,23 @@ def draw_legend(screen, curves, graph_left, graph_top, graph_width, highlighted_
         text_color = (0, 0, 0) if has_metabolites else (120, 120, 120)
         tab_text = legend_font.render(pathway_name, True, text_color)
         screen.blit(tab_text, (tab_rect.x + 6, tab_rect.centery - tab_text.get_height() // 2))
+
+        if pathway_name == selected_legend_pathway and pathway_curves:
+            toggle_rect = pygame.Rect(tab_rect.right - 74, tab_rect.y + 2, 68, tab_rect.height - 4)
+            pathway_labels = [label for label, values, color in pathway_curves]
+            all_hidden = all(label in hidden_metabolites for label in pathway_labels)
+            toggle_fill = (210, 230, 210) if all_hidden else (230, 230, 230)
+            pygame.draw.rect(screen, toggle_fill, toggle_rect)
+            pygame.draw.rect(screen, (0, 0, 0), toggle_rect, 1)
+            toggle_text = toggle_font.render("all on" if all_hidden else "all off", True, (0, 0, 0))
+            screen.blit(
+                toggle_text,
+                (
+                    toggle_rect.centerx - toggle_text.get_width() // 2,
+                    toggle_rect.centery - toggle_text.get_height() // 2,
+                )
+            )
+            legend_pathway_toggle_button_rects.append((pathway_name, pathway_labels, toggle_rect))
 
     for i, (label, values, color) in enumerate(primary_curves):
         draw_legend_item(label, color, legend_x, legend_y + i * 25, False)
@@ -206,7 +224,7 @@ def draw_legend(screen, curves, graph_left, graph_top, graph_width, highlighted_
         ]
         tab_rect = pygame.Rect(legend_x - 6, tab_y - 14, tab_width, tab_height)
         legend_pathway_tab_rects.append((pathway_name, tab_rect))
-        draw_pathway_tab(pathway_name, tab_rect, len(pathway_curves) > 0)
+        draw_pathway_tab(pathway_name, tab_rect, len(pathway_curves) > 0, pathway_curves)
         tab_y += tab_height + tab_gap
 
         if pathway_name == selected_legend_pathway:
@@ -214,4 +232,4 @@ def draw_legend(screen, curves, graph_left, graph_top, graph_width, highlighted_
                 draw_legend_item(label, color, legend_x, tab_y + i * item_gap, True)
             tab_y += len(pathway_curves) * item_gap
 
-    return legend_button_rects, legend_pathway_tab_rects, legend_toggle_button_rects
+    return legend_button_rects, legend_pathway_tab_rects, legend_toggle_button_rects, legend_pathway_toggle_button_rects

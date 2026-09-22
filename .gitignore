@@ -13,6 +13,11 @@ Include/
 share/
 pyvenv.cfg
 
+# PyInstaller build output
+build/
+dist/
+*.spec
+
 # Local config and secrets
 .env
 .env.*

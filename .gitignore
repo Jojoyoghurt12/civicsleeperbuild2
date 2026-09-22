@@ -23,6 +23,7 @@ installer/*.exe
 installer/*.tmp
 installer/Output/
 releases/
+installer/assets/app.png
 
 # Local config and secrets
 .env
